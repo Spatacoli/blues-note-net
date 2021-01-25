@@ -58,11 +58,14 @@ namespace blues_note_net
             {
                 Thread.Sleep(1);
                 chunkLength = Math.Min(jsonLeft, max);
-                var reg = new byte[1];
+                var reg = new byte[chunkLength + 1];
                 reg[0] = (byte)chunkLength;
-                var writeData = reqJson.Slice(chunkOffset, chunkLength);
-
-                card.Write(writeData);
+                var writeData = reqJson.Slice(chunkOffset, chunkLength).ToArray();
+                for (int i = 1; i < reg.Length; i++)
+                {
+                    reg[i] = writeData[i-1];
+                }
+                card.Write(reg);
                 chunkOffset += chunkLength;
                 jsonLeft -= chunkLength;
                 sentInSeg += chunkLength;
@@ -91,9 +94,9 @@ namespace blues_note_net
                 var good = buf[1];
                 if (readLength > 2) 
                 {
-                    var data = buf.AsSpan<byte>(2, 2 + good);
-                    rspJson += data.ToString();
-                    receivedNewline = rspJson.EndsWith('\n');
+                    var data = buf.AsSpan<byte>(2, good);
+                    rspJson += utf8.GetString(data.ToArray(), 0, data.Length);
+                    receivedNewline = data[data.Length - 1] == 10;
                 }
                 chunkLength = Math.Min(available, max);
                 if (chunkLength > 0)
