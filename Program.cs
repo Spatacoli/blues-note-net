@@ -3,6 +3,7 @@ using System.Device.I2c;
 using System.IO;
 using System.Text;
 using System.Text.Json;
+using System.Threading;
 
 namespace blues_note_net
 {
@@ -16,11 +17,20 @@ namespace blues_note_net
             {
                 var card = new Notecard();            
                 Console.WriteLine(card.Transaction("{ \"req\": \"card.status\" }"));
+                
+                var index = 0;
 
-                var data = new DataPoint() { temp = 35.5, humidity = 56.23 };
-                var req = new Request() { req = "note.add", body = data };
-                Console.WriteLine(card.Transaction(JsonSerializer.Serialize(req)));
-                Console.WriteLine(card.Transaction("{ \"req\": \"hub.sync\" }"));
+                while (index < 20)
+                {
+                    var response = JsonSerializer.Deserialize<TempResponse>(card.Transaction("{ \"req\": \"card.temp\" }"));
+                
+                    var req = new Request() { req = "note.add", body = response };
+                    Console.WriteLine(card.Transaction(JsonSerializer.Serialize(req)));
+                    Console.WriteLine(card.Transaction("{ \"req\": \"hub.sync\" }"));
+                    Console.WriteLine(response);
+                    Thread.Sleep(30000);
+                    index++;
+                }
             } 
             catch (TimeoutException te) 
             {
@@ -32,12 +42,17 @@ namespace blues_note_net
     class Request 
     {
         public string req { get; set; }
-        public DataPoint body { get; set; }
+        public TempResponse body { get; set; }
     }
 
-    class DataPoint
+    class TempResponse
     {
-        public double temp { get; set; }
-        public double humidity { get; set; }
+        public double value { get; set; } 
+        public double calibration { get; set; }
+
+        public override string ToString()
+        {
+            return $"Temperature is {value} and Calibration is {calibration}";
+        }
     }
 }
